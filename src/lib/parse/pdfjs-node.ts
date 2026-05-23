@@ -1,6 +1,7 @@
 import { createRequire } from "node:module";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import { ensurePdfJsDomPolyfills } from "./pdfjs-dom-polyfill";
 
 const require = createRequire(import.meta.url);
 
@@ -38,6 +39,7 @@ export function getPdfjsNodeDocumentOptions() {
 export function loadPdfJs(): Promise<PdfJsModule> {
   if (!pdfjsReady) {
     pdfjsReady = (async () => {
+      ensurePdfJsDomPolyfills();
       await import("pdfjs-dist/legacy/build/pdf.worker.mjs");
       return import("pdfjs-dist/legacy/build/pdf.mjs");
     })();
