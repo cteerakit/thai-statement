@@ -1,6 +1,5 @@
 import { createRequire } from "node:module";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
 import { ensurePdfJsDomPolyfills } from "./pdfjs-dom-polyfill";
 
 const require = createRequire(import.meta.url);
@@ -14,20 +13,45 @@ export function resolvePdfjsDistRoot(): string {
   return path.dirname(require.resolve("pdfjs-dist/package.json"));
 }
 
-function assetUrl(...segments: string[]): string {
-  return pathToFileURL(path.join(resolvePdfjsDistRoot(), ...segments)).href;
+/** Directory path with trailing `/` (pdf.js validates with endsWith("/"); Node fs accepts `/` on Windows). */
+export function pdfjsAssetDir(...segments: string[]): string {
+  const dir = path.join(resolvePdfjsDistRoot(), ...segments).replace(/\\/g, "/");
+  return dir.endsWith("/") ? dir : `${dir}/`;
 }
 
+export type PdfjsDocumentOptions = {
+  standardFontDataUrl: string;
+  cMapUrl: string;
+  cMapPacked: true;
+  useWorkerFetch: false;
+  useSystemFonts: false;
+  disableFontFace: true;
+  useWasm: false;
+};
+
 /** Paths and flags for pdf.js in Node / Vercel serverless. */
-export function getPdfjsNodeDocumentOptions() {
+export function getPdfjsNodeDocumentOptions(): PdfjsDocumentOptions {
   return {
-    standardFontDataUrl: assetUrl("standard_fonts/"),
-    cMapUrl: assetUrl("cmaps/"),
-    cMapPacked: true as const,
-    useWorkerFetch: false as const,
-    useSystemFonts: false as const,
-    disableFontFace: true as const,
-    useWasm: false as const,
+    standardFontDataUrl: pdfjsAssetDir("standard_fonts"),
+    cMapUrl: pdfjsAssetDir("cmaps"),
+    cMapPacked: true,
+    useWorkerFetch: false,
+    useSystemFonts: false,
+    disableFontFace: true,
+    useWasm: false,
+  };
+}
+
+/** Minimal options when bundled font/cmap dirs are unavailable. */
+export function getPdfjsNodeDocumentOptionsFallback(): Pick<
+  PdfjsDocumentOptions,
+  "useWorkerFetch" | "useSystemFonts" | "disableFontFace" | "useWasm"
+> {
+  return {
+    useWorkerFetch: false,
+    useSystemFonts: false,
+    disableFontFace: true,
+    useWasm: false,
   };
 }
 

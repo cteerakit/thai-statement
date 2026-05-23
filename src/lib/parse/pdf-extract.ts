@@ -3,12 +3,49 @@ import { ParseError } from "./types";
 import { getPasswordErrorCode } from "./pdf-password";
 import {
   getPdfjsNodeDocumentOptions,
+  getPdfjsNodeDocumentOptionsFallback,
   loadPdfJs,
+  type PdfjsDocumentOptions,
 } from "./pdfjs-node";
 
 const MAX_PAGES = 20;
 
 export { getPasswordErrorCode } from "./pdf-password";
+
+function pdfErrorFromUnknown(err: unknown, phase: string): ParseError {
+  const passwordCode = getPasswordErrorCode(err);
+  if (passwordCode === 1) {
+    return new ParseError(
+      "This PDF is password-protected. Enter the password to unlock it.",
+      "PDF_PASSWORD_REQUIRED",
+    );
+  }
+  if (passwordCode === 2) {
+    return new ParseError(
+      "Incorrect PDF password. Please try again.",
+      "PDF_PASSWORD_INVALID",
+    );
+  }
+
+  const detail = err instanceof Error ? err.message : String(err);
+  console.error(`PDF ${phase} failed:`, detail);
+
+  return new ParseError("Could not read PDF file.", "INVALID_PDF");
+}
+
+async function openPdfDocument(
+  pdfjs: Awaited<ReturnType<typeof loadPdfJs>>,
+  buffer: Buffer,
+  password: string | undefined,
+  docOptions: PdfjsDocumentOptions | ReturnType<typeof getPdfjsNodeDocumentOptionsFallback>,
+) {
+  const loadingTask = pdfjs.getDocument({
+    data: Uint8Array.from(buffer),
+    ...docOptions,
+    ...(password ? { password } : {}),
+  });
+  return loadingTask.promise;
+}
 
 export async function extractTextItems(
   buffer: Buffer,
@@ -19,27 +56,22 @@ export async function extractTextItems(
 
   let pdf;
   try {
-    const loadingTask = pdfjs.getDocument({
-      data: Uint8Array.from(buffer),
-      ...getPdfjsNodeDocumentOptions(),
-      ...(password ? { password } : {}),
-    });
-    pdf = await loadingTask.promise;
-  } catch (err) {
-    const passwordCode = getPasswordErrorCode(err);
-    if (passwordCode === 1) {
-      throw new ParseError(
-        "This PDF is password-protected. Enter the password to unlock it.",
-        "PDF_PASSWORD_REQUIRED",
+    pdf = await openPdfDocument(pdfjs, buffer, password, getPdfjsNodeDocumentOptions());
+  } catch (firstErr) {
+    try {
+      pdf = await openPdfDocument(
+        pdfjs,
+        buffer,
+        password,
+        getPdfjsNodeDocumentOptionsFallback(),
       );
+    } catch (secondErr) {
+      throw pdfErrorFromUnknown(secondErr, "open (with and without bundled fonts)");
     }
-    if (passwordCode === 2) {
-      throw new ParseError(
-        "Incorrect PDF password. Please try again.",
-        "PDF_PASSWORD_INVALID",
-      );
-    }
-    throw new ParseError("Could not read PDF file.", "INVALID_PDF");
+    console.warn(
+      "PDF opened with fallback font options:",
+      firstErr instanceof Error ? firstErr.message : firstErr,
+    );
   }
 
   if (pdf.numPages > maxPages) {
@@ -66,8 +98,8 @@ export async function extractTextItems(
           page: pageNum,
         });
       }
-    } catch {
-      throw new ParseError("Could not read PDF file.", "INVALID_PDF");
+    } catch (err) {
+      throw pdfErrorFromUnknown(err, `page ${pageNum} text`);
     }
   }
 

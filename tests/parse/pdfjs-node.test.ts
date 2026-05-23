@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   getPdfjsNodeDocumentOptions,
   loadPdfJs,
+  pdfjsAssetDir,
   resolvePdfjsDistRoot,
 } from "@/lib/parse/pdfjs-node";
 
@@ -9,6 +10,14 @@ describe("pdfjs-node", () => {
   it("resolves pdfjs-dist on disk", () => {
     const root = resolvePdfjsDistRoot();
     expect(root).toMatch(/pdfjs-dist[\\/]?$/);
+  });
+
+  it("uses filesystem paths for cmap/fonts (not file:// URLs)", () => {
+    const opts = getPdfjsNodeDocumentOptions();
+    expect(opts.cMapUrl).not.toMatch(/^file:/i);
+    expect(opts.standardFontDataUrl).not.toMatch(/^file:/i);
+    expect(opts.cMapUrl.endsWith("/")).toBe(true);
+    expect(pdfjsAssetDir("cmaps")).toBe(opts.cMapUrl);
   });
 
   it("loads pdf.js with worker handler available", async () => {
