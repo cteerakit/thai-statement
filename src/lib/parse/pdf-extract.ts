@@ -1,6 +1,10 @@
 import type { TextItem } from "./types";
 import { ParseError } from "./types";
 import { getPasswordErrorCode } from "./pdf-password";
+import {
+  getPdfjsNodeDocumentOptions,
+  loadPdfJs,
+} from "./pdfjs-node";
 
 const MAX_PAGES = 20;
 
@@ -11,15 +15,13 @@ export async function extractTextItems(
   maxPages = MAX_PAGES,
   password?: string,
 ): Promise<TextItem[]> {
-  const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  const pdfjs = await loadPdfJs();
 
   let pdf;
   try {
     const loadingTask = pdfjs.getDocument({
-      data: new Uint8Array(buffer),
-      useSystemFonts: true,
-      standardFontDataUrl: undefined,
-      disableFontFace: true,
+      data: Uint8Array.from(buffer),
+      ...getPdfjsNodeDocumentOptions(),
       ...(password ? { password } : {}),
     });
     pdf = await loadingTask.promise;
@@ -50,18 +52,22 @@ export async function extractTextItems(
   const items: TextItem[] = [];
 
   for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-    const page = await pdf.getPage(pageNum);
-    const content = await page.getTextContent();
+    try {
+      const page = await pdf.getPage(pageNum);
+      const content = await page.getTextContent();
 
-    for (const item of content.items) {
-      if (!("str" in item) || !item.str.trim()) continue;
-      const transform = item.transform;
-      items.push({
-        str: item.str,
-        x: transform[4],
-        y: transform[5],
-        page: pageNum,
-      });
+      for (const item of content.items) {
+        if (!("str" in item) || !item.str.trim()) continue;
+        const transform = item.transform;
+        items.push({
+          str: item.str,
+          x: transform[4],
+          y: transform[5],
+          page: pageNum,
+        });
+      }
+    } catch {
+      throw new ParseError("Could not read PDF file.", "INVALID_PDF");
     }
   }
 

@@ -186,7 +186,10 @@ export async function POST(request: Request) {
           : 400;
       return NextResponse.json({ error: err.message, code: err.code }, { status });
     }
-    console.error("Convert error:", err);
+    console.error(
+      "Convert error:",
+      err instanceof Error ? err.stack ?? err.message : err,
+    );
     return NextResponse.json(
       { error: "Failed to process PDF." },
       { status: 500 },
