@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { rowsToCsv } from "@/lib/export/csv";
+import {
+  DEFAULT_OUTPUT_TABLE_PRESET,
+  normalizeOutputTablePreset,
+  outputTablePresetSchema,
+} from "@/lib/export/output-preset";
 import { rowsToXlsxBuffer } from "@/lib/export/xlsx";
 import {
   MAX_FILE_BYTES,
@@ -59,13 +64,23 @@ export async function POST(request: Request) {
 
   const bankRaw = String(formData.get("bank") ?? "auto");
   const formatRaw = String(formData.get("format") ?? "json");
+  const columnPresetRaw = String(
+    formData.get("columnPreset") ?? DEFAULT_OUTPUT_TABLE_PRESET,
+  );
 
   const bankParsed = bankSchema.safeParse(bankRaw);
   const formatParsed = formatSchema.safeParse(formatRaw);
+  const columnPresetParsed = outputTablePresetSchema.safeParse(columnPresetRaw);
 
-  if (!bankParsed.success || !formatParsed.success) {
+  if (
+    !bankParsed.success ||
+    !formatParsed.success ||
+    !columnPresetParsed.success
+  ) {
     return NextResponse.json({ error: "Invalid parameters." }, { status: 400 });
   }
+
+  const columnPreset = normalizeOutputTablePreset(columnPresetParsed.data);
 
   const passwordRaw = formData.get("password");
   const password =
@@ -98,10 +113,11 @@ export async function POST(request: Request) {
       bank: result.detectedBank,
       confidence: result.confidence,
       rowCount: result.rows.length,
+      columnPreset,
     };
 
     if (formatParsed.data === "csv") {
-      const csv = rowsToCsv(result.rows);
+      const csv = rowsToCsv(result.rows, columnPreset);
       return new NextResponse(csv, {
         headers: {
           "Content-Type": "text/csv; charset=utf-8",
@@ -111,7 +127,7 @@ export async function POST(request: Request) {
     }
 
     if (formatParsed.data === "xlsx") {
-      const xlsx = await rowsToXlsxBuffer(result.rows);
+      const xlsx = await rowsToXlsxBuffer(result.rows, columnPreset);
       return new NextResponse(new Uint8Array(xlsx), {
         headers: {
           "Content-Type":
@@ -124,7 +140,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       rows: result.rows,
       warnings: result.warnings,
-      meta,
+      meta: { ...meta, columnPreset },
     });
   } catch (err) {
     if (err instanceof ParseError) {

@@ -29,7 +29,7 @@ export default async function LocaleLayout({
     <>
       <SiteHeader locale={locale} dict={dict.nav} />
       <main className="flex-1">{children}</main>
-      <footer className="border-t py-6 text-center text-sm text-muted-foreground">
+      <footer className="border-t border-border/40 py-8 text-center text-sm text-muted-foreground">
         <p>
           {dict.footer.processed}{" "}
           <a
@@ -44,6 +44,15 @@ export default async function LocaleLayout({
             className="underline hover:text-foreground"
           >
             {dict.footer.terms}
+          </a>
+          {" · "}
+          <a
+            href="https://thaistatement.featurebase.app/"
+            className="underline hover:text-foreground"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {dict.footer.feedback}
           </a>
         </p>
       </footer>

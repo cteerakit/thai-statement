@@ -12,7 +12,7 @@ type SiteHeaderProps = {
 
 export function SiteHeader({ locale, dict }: SiteHeaderProps) {
   return (
-    <header className="border-b border-border/60 bg-background/80 backdrop-blur-sm sticky top-0 z-50">
+    <header className="sticky top-0 z-50 border-b border-border/40 bg-background/70 backdrop-blur-md supports-[backdrop-filter]:bg-background/55">
       <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4">
         <Link
           href={localizedPath(locale, "/")}

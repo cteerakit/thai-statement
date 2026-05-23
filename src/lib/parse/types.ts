@@ -1,5 +1,8 @@
 export type BankId = "scb" | "kbank" | "ktb";
 
+/** How amount columns are labeled on the source statement. */
+export type AmountColumnLayout = "withdrawal_deposit" | "debit_credit";
+
 export type StatementRow = {
   date: string;
   description: string;
@@ -15,6 +18,7 @@ export type StatementMetadata = {
   periodStart?: string;
   periodEnd?: string;
   currency?: string;
+  amountColumnLayout?: AmountColumnLayout;
 };
 
 export type ParserResult = {

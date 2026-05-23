@@ -14,11 +14,13 @@ export const dictionary = {
       "PDFs are processed in memory and discarded.",
     privacy: "Privacy",
     terms: "Terms",
+    feedback: "Feedback",
   },
   home: {
     title: "Thai bank statement converter",
     subtitle:
       "Upload a digital PDF statement and download clean CSV or Excel files. No account required.",
+    supportedBanks: "Supported banks",
     convertTitle: "Convert your statement",
     convertDescription:
       "Supports text-based PDFs up to 10 MB, including password-protected files. Scanned/image PDFs are not supported yet.",
@@ -27,7 +29,7 @@ export const dictionary = {
       "Your PDF is processed in server memory only and is never stored.",
     featureColumnsTitle: "Standard columns",
     featureColumnsBody:
-      "Date, description, debit, credit, balance, and reference.",
+      "Date, description, withdrawal, deposit, balance, and reference.",
     featureBanksTitle: "Thai banks",
     featureBanksBody: "Auto-detects SCB, KBank, and KTB with manual override.",
   },
@@ -39,6 +41,9 @@ export const dictionary = {
     downloadFormat: "Download format",
     formatCsv: "CSV",
     formatXlsx: "Excel (XLSX)",
+    columnPreset: "Column layout",
+    presetWithdrawalDeposit: "Withdrawal & deposit columns",
+    presetSignedAmount: "Single amount (+/−)",
     preview: "Preview transactions",
     processing: "Processing…",
     download: "Download",
@@ -59,9 +64,11 @@ export const dictionary = {
   preview: {
     date: "Date",
     description: "Description",
-    debit: "Debit",
-    credit: "Credit",
+    withdrawal: "Withdrawal",
+    deposit: "Deposit",
+    amount: "Amount",
     balance: "Balance",
+    reference: "Reference",
     showingRows: "Showing first {limit} of {total} rows. Download the full file to see all transactions.",
   },
   privacy: {

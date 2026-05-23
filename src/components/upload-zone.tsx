@@ -18,11 +18,13 @@ import {
   CONVERT_API_HEADER_VALUE,
 } from "@/lib/security/api";
 import { cn } from "@/lib/utils";
+import type { OutputTablePreset } from "@/lib/export/output-preset";
 import type { StatementRow } from "@/lib/parse/types";
 import { StatementPreview } from "./statement-preview";
 
 type BankOption = "auto" | "scb" | "kbank" | "ktb";
 type FormatOption = "csv" | "xlsx";
+type ColumnPresetOption = OutputTablePreset;
 
 type ConvertMeta = {
   bank: string;
@@ -31,6 +33,7 @@ type ConvertMeta = {
   accountNumber?: string;
   periodStart?: string;
   periodEnd?: string;
+  columnPreset?: ColumnPresetOption;
 };
 
 type UploadZoneProps = {
@@ -44,6 +47,8 @@ export function UploadZone({ dict, previewDict }: UploadZoneProps) {
   const [file, setFile] = useState<File | null>(null);
   const [bank, setBank] = useState<BankOption>("auto");
   const [format, setFormat] = useState<FormatOption>("csv");
+  const [columnPreset, setColumnPreset] =
+    useState<ColumnPresetOption>("withdrawal_deposit");
   const [password, setPassword] = useState("");
   const [needsPassword, setNeedsPassword] = useState(false);
   const [checkingPassword, setCheckingPassword] = useState(false);
@@ -116,6 +121,7 @@ export function UploadZone({ dict, previewDict }: UploadZoneProps) {
     formData.append("file", file);
     formData.append("bank", bank);
     formData.append("format", downloadFormat ? downloadFormat : "json");
+    formData.append("columnPreset", columnPreset);
     if (password) {
       formData.append("password", password);
     }
@@ -161,6 +167,9 @@ export function UploadZone({ dict, previewDict }: UploadZoneProps) {
       setRows(data.rows);
       setWarnings(data.warnings ?? []);
       setMeta(data.meta);
+      if (data.meta?.columnPreset) {
+        setColumnPreset(data.meta.columnPreset as ColumnPresetOption);
+      }
     } catch {
       setError(dict.errorNetwork);
     } finally {
@@ -197,7 +206,7 @@ export function UploadZone({ dict, previewDict }: UploadZoneProps) {
         <p className="text-sm text-muted-foreground">{dict.dropzoneHint}</p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <div className="space-y-2">
           <Label htmlFor="bank">{dict.bank}</Label>
           <Select
@@ -237,6 +246,32 @@ export function UploadZone({ dict, previewDict }: UploadZoneProps) {
             <SelectContent>
               <SelectItem value="csv">{dict.formatCsv}</SelectItem>
               <SelectItem value="xlsx">{dict.formatXlsx}</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2 sm:col-span-2 lg:col-span-1">
+          <Label htmlFor="column-preset">{dict.columnPreset}</Label>
+          <Select
+            value={columnPreset}
+            onValueChange={(v) => setColumnPreset(v as ColumnPresetOption)}
+            items={[
+              {
+                value: "withdrawal_deposit",
+                label: dict.presetWithdrawalDeposit,
+              },
+              { value: "signed_amount", label: dict.presetSignedAmount },
+            ]}
+          >
+            <SelectTrigger id="column-preset" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="withdrawal_deposit">
+                {dict.presetWithdrawalDeposit}
+              </SelectItem>
+              <SelectItem value="signed_amount">
+                {dict.presetSignedAmount}
+              </SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -321,7 +356,13 @@ export function UploadZone({ dict, previewDict }: UploadZoneProps) {
         </div>
       )}
 
-      {rows && <StatementPreview rows={rows} dict={previewDict} />}
+      {rows && (
+        <StatementPreview
+          rows={rows}
+          dict={previewDict}
+          columnPreset={columnPreset}
+        />
+      )}
     </div>
   );
 }

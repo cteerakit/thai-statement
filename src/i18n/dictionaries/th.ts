@@ -14,11 +14,13 @@ export const dictionary: Dictionary = {
     processed: "ประมวลผล PDF ในหน่วยความจำแล้วทิ้งทันที",
     privacy: "ความเป็นส่วนตัว",
     terms: "ข้อกำหนด",
+    feedback: "ข้อเสนอแนะ",
   },
   home: {
     title: "แปลงสเตทเมนต์ธนาคารไทย",
     subtitle:
       "อัปโหลดสเตทเมนต์ PDF ดิจิทัลแล้วดาวน์โหลดไฟล์ CSV หรือ Excel ที่จัดรูปแบบแล้ว ไม่ต้องมีบัญชี",
+    supportedBanks: "ธนาคารที่รองรับ",
     convertTitle: "แปลงสเตทเมนต์ของคุณ",
     convertDescription:
       "รองรับ PDF แบบข้อความสูงสุด 10 MB รวมไฟล์ที่มีรหัสผ่าน ยังไม่รองรับ PDF สแกน/รูปภาพ",
@@ -27,7 +29,7 @@ export const dictionary: Dictionary = {
       "ประมวลผล PDF ในหน่วยความจำเท่านั้น และไม่มีการเก็บไฟล์",
     featureColumnsTitle: "คอลัมน์มาตรฐาน",
     featureColumnsBody:
-      "วันที่ รายละเอียด เดบิต เครดิต ยอดคงเหลือ และอ้างอิง",
+      "วันที่ รายละเอียด ถอน ฝาก ยอดคงเหลือ และอ้างอิง",
     featureBanksTitle: "ธนาคารไทย",
     featureBanksBody:
       "ตรวจจับ SCB, KBank และ KTB อัตโนมัติ พร้อมเลือกธนาคารเองได้",
@@ -40,6 +42,9 @@ export const dictionary: Dictionary = {
     downloadFormat: "รูปแบบดาวน์โหลด",
     formatCsv: "CSV",
     formatXlsx: "Excel (XLSX)",
+    columnPreset: "รูปแบบคอลัมน์",
+    presetWithdrawalDeposit: "คอลัมน์ถอนและฝาก",
+    presetSignedAmount: "ยอดเดียว (+/−)",
     preview: "ดูตัวอย่างรายการ",
     processing: "กำลังประมวลผล…",
     download: "ดาวน์โหลด",
@@ -60,9 +65,11 @@ export const dictionary: Dictionary = {
   preview: {
     date: "วันที่",
     description: "รายละเอียด",
-    debit: "เดบิต",
-    credit: "เครดิต",
+    withdrawal: "ถอน",
+    deposit: "ฝาก",
+    amount: "ยอด",
     balance: "ยอดคงเหลือ",
+    reference: "อ้างอิง",
     showingRows:
       "แสดง {limit} จาก {total} แถวแรก ดาวน์โหลดไฟล์เต็มเพื่อดูรายการทั้งหมด",
   },

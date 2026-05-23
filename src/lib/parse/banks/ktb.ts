@@ -3,5 +3,8 @@ import { parseBankTable } from "./table-parser";
 
 /** KTB (Krungthai) statement parser. */
 export function parseKtb(items: TextItem[]): ParserResult {
-  return parseBankTable(items, "ktb", { columnGap: 18 });
+  return parseBankTable(items, "ktb", {
+    columnGap: 18,
+    amountColumnLayout: "withdrawal_deposit",
+  });
 }
