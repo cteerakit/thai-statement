@@ -4,20 +4,24 @@ import { pathToFileURL } from "node:url";
 
 const require = createRequire(import.meta.url);
 
-let configured = false;
+type PdfJsModule = typeof import("pdfjs-dist/legacy/build/pdf.mjs");
 
-function getPdfjsDistRoot(): string {
+let pdfjsReady: Promise<PdfJsModule> | null = null;
+
+/** Resolve pdfjs-dist root via package.json (works when traced on Vercel). */
+export function resolvePdfjsDistRoot(): string {
   return path.dirname(require.resolve("pdfjs-dist/package.json"));
+}
+
+function assetUrl(...segments: string[]): string {
+  return pathToFileURL(path.join(resolvePdfjsDistRoot(), ...segments)).href;
 }
 
 /** Paths and flags for pdf.js in Node / Vercel serverless. */
 export function getPdfjsNodeDocumentOptions() {
-  const distRoot = getPdfjsDistRoot();
   return {
-    standardFontDataUrl: pathToFileURL(
-      path.join(distRoot, "standard_fonts/"),
-    ).href,
-    cMapUrl: pathToFileURL(path.join(distRoot, "cmaps/")).href,
+    standardFontDataUrl: assetUrl("standard_fonts/"),
+    cMapUrl: assetUrl("cmaps/"),
     cMapPacked: true as const,
     useWorkerFetch: false as const,
     useSystemFonts: false as const,
@@ -26,17 +30,17 @@ export function getPdfjsNodeDocumentOptions() {
   };
 }
 
-/** Configure worker + load pdf.js once per process (required on Vercel). */
-export async function loadPdfJs() {
-  const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
-
-  if (!configured) {
-    const distRoot = getPdfjsDistRoot();
-    pdfjs.GlobalWorkerOptions.workerSrc = pathToFileURL(
-      path.join(distRoot, "legacy/build/pdf.worker.mjs"),
-    ).href;
-    configured = true;
+/**
+ * Load pdf.js for server-side parsing.
+ * Pre-imports the worker module so Node uses globalThis.pdfjsWorker instead of
+ * dynamic-importing workerSrc (which breaks on Vercel when paths differ).
+ */
+export function loadPdfJs(): Promise<PdfJsModule> {
+  if (!pdfjsReady) {
+    pdfjsReady = (async () => {
+      await import("pdfjs-dist/legacy/build/pdf.worker.mjs");
+      return import("pdfjs-dist/legacy/build/pdf.mjs");
+    })();
   }
-
-  return pdfjs;
+  return pdfjsReady;
 }

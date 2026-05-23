@@ -136,12 +136,20 @@ export async function POST(request: Request) {
           : 400;
       return NextResponse.json({ error: err.message, code: err.code }, { status });
     }
-    console.error(
-      "Convert error:",
-      err instanceof Error ? err.stack ?? err.message : err,
-    );
+
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("Convert error:", err instanceof Error ? err.stack ?? message : err);
+
+    const hint =
+      /pdfjs|worker|Cannot find module|ENOENT/i.test(message)
+        ? "PDF engine failed to start on the server. Redeploy after the latest update; if it persists, check Vercel function logs."
+        : undefined;
+
     return NextResponse.json(
-      { error: "Failed to process PDF." },
+      {
+        error: "Failed to process PDF.",
+        ...(hint ? { hint } : {}),
+      },
       { status: 500 },
     );
   }
