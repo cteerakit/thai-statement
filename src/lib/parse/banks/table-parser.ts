@@ -23,8 +23,22 @@ const WITHDRAWAL_DEPOSIT_HEADER =
 
 const DEBIT_CREDIT_HEADER = /debit|credit|เดบิต|เครดิต/i;
 
+/** SCB savings: one Debit/Credit amount column, then Balance/Baht, then Description. */
+const SCB_TXN_BALANCE_HEADER =
+  /(?:debit\/credit|ลูกหนี้\/เจ้าหนี้)/i;
+
+const SCB_BALANCE_COLUMN_HEADER = /(?:balance\/baht|ยอดเงินคงเหลือ)/i;
+
+const BROUGHT_FORWARD_LINE =
+  /brought forward|ยอดเงินคงเหลือยกมา/i;
+
+const KBANK_OPENING_LINE = /ยอดยกมา/i;
+
+const KBANK_TXN_BALANCE_MARKERS =
+  /ถอนเงิน\s*\/\s*ฝากเงิน|ยอดคงเหลือ/i;
+
 const SKIP_LINE =
-  /^(page|หน้า|total|ยอดรวม|opening|closing| brought forward| carried forward|สรุป|balance forward)/i;
+  /^(page|หน้า|total|ยอดรวม|opening|closing| carried forward|สรุป)/i;
 
 const METADATA_LINE =
   /statement\s+period|requested\s+date|ช่วงเวลา|วันที่ขอ|รอบระยะเวลา/i;
@@ -39,6 +53,12 @@ const ACCOUNT_PATTERN =
 
 const PERIOD_PATTERN =
   /(?:period|ช่วงเวลา|statement\s+period|รอบระยะเวลา)\s*[:]?\s*(\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4})\s*[-–toถึง]\s*(\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4})/i;
+
+const PERIOD_DASH_PATTERN =
+  /(?:วันที่|date)\s*[:]?\s*(\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4})\s*[-–]\s*(\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4})/i;
+
+const KBANK_PERIOD_PATTERN =
+  /รอบระหว่างวันที่\s*(\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4})\s*[-–]\s*(\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4})/i;
 
 export type ParseBankTableOptions = {
   columnGap?: number;
@@ -64,6 +84,13 @@ function positiveAmount(raw: string): number | null {
   const n = parseAmount(raw);
   if (n === null || n === 0) return null;
   return Math.abs(n);
+}
+
+function rowHasTransactionAmount(row: StatementRow): boolean {
+  return (
+    (row.debit !== null && row.debit > 0) ||
+    (row.credit !== null && row.credit > 0)
+  );
 }
 
 function enforceExclusiveWithdrawalDeposit(
@@ -155,7 +182,7 @@ function parseWithdrawalDepositBalanceColumns(
   };
 }
 
-/** Debit, credit, balance — last three columns (SCB / KBank). */
+/** Debit, credit, balance — last three columns (KBank-style). */
 function parseDebitCreditBalanceColumns(columns: string[]): {
   debit: number | null;
   credit: number | null;
@@ -164,6 +191,342 @@ function parseDebitCreditBalanceColumns(columns: string[]): {
   const debit = positiveAmount(columns[columns.length - 3] ?? "");
   const credit = positiveAmount(columns[columns.length - 2] ?? "");
   const balance = parseAmount(columns[columns.length - 1] ?? "");
+  return { debit, credit, balance };
+}
+
+function isScbTxnBalanceHeaderLine(line: string): boolean {
+  return (
+    SCB_TXN_BALANCE_HEADER.test(line) && SCB_BALANCE_COLUMN_HEADER.test(line)
+  );
+}
+
+/** SCB: txn amount, balance, description — last three columns. */
+function parseScbTxnBalanceColumns(
+  columns: string[],
+  txnCode: string,
+  description: string,
+  previousBalance: number | null,
+): { debit: number | null; credit: number | null; balance: number | null } {
+  const txn = positiveAmount(columns[columns.length - 3] ?? "");
+  const balance = parseAmount(columns[columns.length - 2] ?? "");
+  if (txn === null) {
+    return { debit: null, credit: null, balance };
+  }
+
+  const { debit, credit } = inferScbDebitCredit(
+    txnCode,
+    description,
+    txn,
+    balance,
+    previousBalance,
+  );
+  return { debit, credit, balance };
+}
+
+function inferScbDebitCredit(
+  txnCode: string,
+  description: string,
+  txn: number,
+  balance: number | null,
+  previousBalance: number | null,
+): { debit: number | null; credit: number | null } {
+  const fromDelta = inferFromBalanceDelta(
+    txn,
+    balance,
+    previousBalance,
+  );
+  if (fromDelta) return fromDelta;
+
+  const code = txnCode.trim().toUpperCase();
+  if (code === "X2") return { debit: txn, credit: null };
+  if (code === "X1" || code === "QN") return { debit: null, credit: txn };
+
+  if (/จ่ายบิล|payment|หัก|fee|ค่าธรรมเนียม/i.test(description)) {
+    return { debit: txn, credit: null };
+  }
+  if (
+    /รับโอน|transfer from|โอนเข้า|deposit|ฝาก|interest|ดอกเบี้ย/i.test(
+      description,
+    )
+  ) {
+    return { debit: null, credit: txn };
+  }
+
+  return { debit: null, credit: txn };
+}
+
+type ScbHeaderColumnMap = {
+  dateX: number;
+  txnX: number;
+  balanceX: number;
+};
+
+function buildScbHeaderColumnMap(row: ClusteredRow): ScbHeaderColumnMap | null {
+  const findCell = (re: RegExp) =>
+    row.cells.find((c) => re.test(c.text.trim()));
+
+  const dateCell = findCell(/date|วันที่/i);
+  const txnCell = findCell(/debit\/credit|ลูกหนี้\/เจ้าหนี้/i);
+  const balanceCell = findCell(/balance\/baht|ยอดเงินคงเหลือ/i);
+
+  if (!dateCell || !txnCell || !balanceCell) return null;
+
+  return {
+    dateX: dateCell.x,
+    txnX: txnCell.x,
+    balanceX: balanceCell.x,
+  };
+}
+
+function findScbHeaderColumnMap(rows: ClusteredRow[]): ScbHeaderColumnMap | null {
+  for (const row of rows) {
+    if (!isScbTxnBalanceHeaderLine(row.line)) continue;
+    const map = buildScbHeaderColumnMap(row);
+    if (map) return map;
+  }
+  return null;
+}
+
+function parseScbRowWithHeaderColumnMap(
+  row: ClusteredRow,
+  map: ScbHeaderColumnMap,
+  previousBalance: number | null,
+): StatementRow | null {
+  const date =
+    extractDateFromLine(row.line) ??
+    parseThaiDate(
+      row.cells.find((c) => Math.abs(c.x - map.dateX) < COLUMN_X_TOLERANCE)
+        ?.text ?? "",
+    );
+  if (!date) return null;
+
+  let txn: number | null = null;
+  let balance: number | null = null;
+  let txnCode = "";
+  const descriptionParts: string[] = [];
+
+  const txnCandidates: { x: number; amount: number }[] = [];
+
+  for (const cell of row.cells) {
+    const amt = parseAmount(cell.text);
+    if (amt !== null) {
+      const distBal = Math.abs(cell.x - map.balanceX);
+      if (distBal <= COLUMN_X_TOLERANCE) {
+        balance = amt;
+        continue;
+      }
+      if (cell.x > map.dateX + 30 && cell.x < map.balanceX - 20) {
+        txnCandidates.push({ x: cell.x, amount: Math.abs(amt) });
+      }
+      continue;
+    }
+
+    if (extractDateFromLine(cell.text)) continue;
+    if (/^X[12]$|^QN$/i.test(cell.text.trim())) {
+      txnCode = cell.text.trim();
+      continue;
+    }
+    if (cell.x > map.balanceX + 15) {
+      descriptionParts.push(cell.text);
+    }
+  }
+
+  if (txnCandidates.length > 0) {
+    txnCandidates.sort((a, b) => b.x - a.x);
+    txn = txnCandidates[0].amount;
+  }
+
+  const description = descriptionParts.join(" ").replace(/\s+/g, " ").trim();
+  if (txn === null) return null;
+
+  const { debit, credit } = inferScbDebitCredit(
+    txnCode,
+    description,
+    txn,
+    balance,
+    previousBalance,
+  );
+
+  if (debit === null && credit === null && balance === null) return null;
+
+  return { date, description: description || "Transaction", debit, credit, balance };
+}
+
+function hasKbankTxnBalanceLayout(rows: ClusteredRow[]): boolean {
+  const text = rows.map((r) => r.line).join("\n");
+  return (
+    /ถอนเงิน\s*\/\s*ฝากเงิน/.test(text) &&
+    /ยอดคงเหลือ/.test(text)
+  );
+}
+
+function inferKbankDebitCredit(
+  txnType: string,
+  description: string,
+  txn: number,
+  balance: number | null,
+  previousBalance: number | null,
+): { debit: number | null; credit: number | null } {
+  const fromDelta = inferFromBalanceDelta(
+    txn,
+    balance,
+    previousBalance,
+  );
+  if (fromDelta) return fromDelta;
+
+  const context = `${txnType} ${description}`;
+  if (/ชำระเงิน|โอนเงิน|โอนไป|ถอน|หัก|payment/i.test(context)) {
+    return { debit: txn, credit: null };
+  }
+  if (/รับเงิน|ฝาก|โอนเข้า|deposit/i.test(context)) {
+    return { debit: null, credit: txn };
+  }
+  return { debit: txn, credit: null };
+}
+
+type KbankHeaderColumnMap = {
+  dateX: number;
+  txnX: number;
+  balanceX: number;
+  channelX?: number;
+  descriptionX?: number;
+};
+
+function findKbankHeaderColumnMap(
+  rows: ClusteredRow[],
+): KbankHeaderColumnMap | null {
+  let dateX: number | undefined;
+  let txnX: number | undefined;
+  let balanceX: number | undefined;
+  let channelX: number | undefined;
+  let descriptionX: number | undefined;
+
+  for (const row of rows) {
+    for (const cell of row.cells) {
+      const text = cell.text.trim();
+      if (/^วันที่$/.test(text)) dateX = cell.x;
+      if (/ถอนเงิน\s*\/\s*ฝากเงิน|^รายการ$/.test(text)) txnX = cell.x;
+      if (/ยอดคงเหลือ/.test(text)) balanceX = cell.x;
+      if (/^ช่องทาง$/.test(text)) channelX = cell.x;
+      if (/^รายละเอียด$/.test(text)) descriptionX = cell.x;
+    }
+  }
+
+  if (dateX === undefined || txnX === undefined || balanceX === undefined) {
+    return null;
+  }
+  return { dateX, txnX, balanceX, channelX, descriptionX };
+}
+
+function parseKbankRowWithHeaderColumnMap(
+  row: ClusteredRow,
+  map: KbankHeaderColumnMap,
+  previousBalance: number | null,
+): StatementRow | null {
+  const date = extractDateFromLine(row.line);
+  if (!date) return null;
+
+  let txn: number | null = null;
+  let balance: number | null = null;
+  let txnType = "";
+  let time = "";
+  let channel = "";
+  const descriptionParts: string[] = [];
+
+  for (const cell of row.cells) {
+    const amt = parseAmount(cell.text);
+    if (amt !== null) {
+      const distTxn = Math.abs(cell.x - map.txnX);
+      const distBal = Math.abs(cell.x - map.balanceX);
+      if (distBal <= distTxn) {
+        balance = amt;
+      } else {
+        txn = Math.abs(amt);
+      }
+      continue;
+    }
+
+    if (extractDateFromLine(cell.text)) continue;
+    if (/^\d{1,2}:\d{2}$/.test(cell.text.trim())) {
+      time = cell.text.trim();
+      continue;
+    }
+    if (/ชำระเงิน|โอนเงิน|รับเงิน|ฝาก/i.test(cell.text)) {
+      txnType = cell.text.trim();
+      continue;
+    }
+    if (
+      map.channelX !== undefined &&
+      Math.abs(cell.x - map.channelX) <= COLUMN_X_TOLERANCE
+    ) {
+      channel = cell.text.trim();
+      continue;
+    }
+    if (
+      map.descriptionX !== undefined &&
+      cell.x >= map.descriptionX - COLUMN_X_TOLERANCE
+    ) {
+      descriptionParts.push(cell.text);
+    }
+  }
+
+  const detail = descriptionParts.join(" ").replace(/\s+/g, " ").trim();
+  const description =
+    [time, txnType, channel, detail].filter(Boolean).join(" ").trim() ||
+    "Transaction";
+
+  if (KBANK_OPENING_LINE.test(row.line)) {
+    return null;
+  }
+
+  if (txn === null) return null;
+
+  const { debit, credit } = inferKbankDebitCredit(
+    txnType,
+    detail,
+    txn,
+    balance,
+    previousBalance,
+  );
+
+  if (debit === null && credit === null && balance === null) return null;
+
+  return { date, description, debit, credit, balance };
+}
+
+function parseKbankTxnBalanceColumns(
+  columns: string[],
+  previousBalance: number | null,
+): { debit: number | null; credit: number | null; balance: number | null } {
+  const date = extractDateFromLine(columns[0] ?? "");
+  if (!date) {
+    return { debit: null, credit: null, balance: null };
+  }
+
+  if (KBANK_OPENING_LINE.test(columns.join(" "))) {
+    const balance = parseAmount(columns.at(-1) ?? "");
+    return { debit: null, credit: null, balance };
+  }
+
+  const txnType = columns[2] ?? "";
+  const txn = positiveAmount(columns[3] ?? "");
+  const balance = parseAmount(columns[4] ?? "");
+  if (txn === null) {
+    return { debit: null, credit: null, balance };
+  }
+
+  const detail = columns.slice(6).join(" ").trim();
+  const time = columns[1] ?? "";
+  const channel = columns[5] ?? "";
+  const description = [time, txnType, channel, detail].filter(Boolean).join(" ");
+
+  const { debit, credit } = inferKbankDebitCredit(
+    txnType,
+    description,
+    txn,
+    balance,
+    previousBalance,
+  );
   return { debit, credit, balance };
 }
 
@@ -353,10 +716,14 @@ function detectAmountColumnLayout(
 ): AmountColumnLayout {
   if (override) return override;
   if (bank === "ktb") return "withdrawal_deposit";
+  if (bank === "kbank" && hasKbankTxnBalanceLayout(rows)) {
+    return "kbank_txn_balance";
+  }
 
   for (let i = Math.max(0, transactionStart - 5); i < transactionStart; i++) {
     const line = rows[i]?.line ?? "";
     if (!TRANSACTION_HEADER.test(line)) continue;
+    if (isScbTxnBalanceHeaderLine(line)) return "txn_balance";
     if (WITHDRAWAL_DEPOSIT_HEADER.test(line)) return "withdrawal_deposit";
     if (DEBIT_CREDIT_HEADER.test(line)) return "debit_credit";
   }
@@ -371,7 +738,7 @@ function parseTransactionLine(
   previousBalance: number | null,
 ): StatementRow | null {
   const date =
-    (columns?.[0] && parseThaiDate(columns[0])) ||
+    (columns?.[0] && extractDateFromLine(columns[0])) ||
     extractDateFromLine(line);
   if (!date) return null;
 
@@ -397,7 +764,12 @@ function parseTransactionLine(
       .trim();
   }
 
-  if (columns && columns.length >= 4) {
+  if (
+    columns &&
+    columns.length >= 4 &&
+    amountLayout !== "txn_balance" &&
+    amountLayout !== "kbank_txn_balance"
+  ) {
     const descCols = columns.slice(1, -3).join(" ").trim();
     if (descCols) description = descCols;
   }
@@ -410,7 +782,29 @@ function parseTransactionLine(
   let balance: number | null = null;
 
   if (columns && columns.length >= 5) {
-    if (amountLayout === "withdrawal_deposit") {
+    if (amountLayout === "txn_balance") {
+      const txnCode = columns[1] ?? "";
+      const descCol = (columns[columns.length - 1] ?? "").trim();
+      if (descCol) description = descCol;
+      ({ debit, credit, balance } = parseScbTxnBalanceColumns(
+        columns,
+        txnCode,
+        description,
+        previousBalance,
+      ));
+    } else if (amountLayout === "kbank_txn_balance") {
+      ({ debit, credit, balance } = parseKbankTxnBalanceColumns(
+        columns,
+        previousBalance,
+      ));
+      const time = columns[1] ?? "";
+      const txnType = columns[2] ?? "";
+      const channel = columns[5] ?? "";
+      const detail = columns.slice(6).join(" ").trim();
+      description =
+        [time, txnType, channel, detail].filter(Boolean).join(" ").trim() ||
+        description;
+    } else if (amountLayout === "withdrawal_deposit") {
       ({ debit, credit, balance } = parseWithdrawalDepositBalanceColumns(
         columns,
         previousBalance,
@@ -471,17 +865,28 @@ function parseTransactionLine(
     const [txn, bal] = amounts;
     balance = bal;
     const txnAbs = Math.abs(txn);
-    const fromDelta = inferFromBalanceDelta(
-      txnAbs,
-      bal,
-      previousBalance,
-    );
-    if (fromDelta) {
-      ({ debit, credit } = fromDelta);
-    } else if (txn < 0) {
-      debit = txnAbs;
+    if (amountLayout === "txn_balance") {
+      const codeMatch = line.match(/\b(X[12]|QN)\b/i);
+      ({ debit, credit } = inferScbDebitCredit(
+        codeMatch?.[1] ?? "",
+        description,
+        txnAbs,
+        bal,
+        previousBalance,
+      ));
     } else {
-      ({ debit, credit } = inferFromDescription(description, txnAbs));
+      const fromDelta = inferFromBalanceDelta(
+        txnAbs,
+        bal,
+        previousBalance,
+      );
+      if (fromDelta) {
+        ({ debit, credit } = fromDelta);
+      } else if (txn < 0) {
+        debit = txnAbs;
+      } else {
+        ({ debit, credit } = inferFromDescription(description, txnAbs));
+      }
     }
   } else if (amounts.length === 1) {
     const v = amounts[0];
@@ -506,7 +911,10 @@ function isTableHeaderRow(line: string): boolean {
   return (
     /date|วันที่/i.test(line) &&
     /balance|คงเหลือ/i.test(line) &&
-    (WITHDRAWAL_DEPOSIT_HEADER.test(line) || DEBIT_CREDIT_HEADER.test(line))
+    (WITHDRAWAL_DEPOSIT_HEADER.test(line) ||
+      DEBIT_CREDIT_HEADER.test(line) ||
+      isScbTxnBalanceHeaderLine(line) ||
+      /ถอนเงิน\s*\/\s*ฝากเงิน/.test(line))
   );
 }
 
@@ -537,7 +945,10 @@ function extractMetadata(
   amountColumnLayout: AmountColumnLayout,
 ): ParserResult["metadata"] {
   const accountMatch = fullText.match(ACCOUNT_PATTERN);
-  const periodMatch = fullText.match(PERIOD_PATTERN);
+  const periodMatch =
+    fullText.match(PERIOD_PATTERN) ??
+    fullText.match(PERIOD_DASH_PATTERN) ??
+    fullText.match(KBANK_PERIOD_PATTERN);
 
   return {
     bank,
@@ -563,6 +974,8 @@ export function parseBankTable(
   const fullText = rows.map((r) => r.line).join("\n");
 
   const headerColumnMap = findHeaderColumnMap(rows);
+  const scbHeaderColumnMap = findScbHeaderColumnMap(rows);
+  const kbankHeaderColumnMap = findKbankHeaderColumnMap(rows);
   const start = findTransactionStart(rows, headerColumnMap);
   const amountColumnLayout = detectAmountColumnLayout(
     rows,
@@ -578,11 +991,44 @@ export function parseBankTable(
 
   for (let i = start; i < rows.length; i++) {
     const row = rows[i];
+    if (!row.line.trim() || METADATA_LINE.test(row.line)) {
+      continue;
+    }
+
+    if (BROUGHT_FORWARD_LINE.test(row.line) || KBANK_OPENING_LINE.test(row.line)) {
+      const broughtForward =
+        extractAmounts(row.line).at(-1) ??
+        parseAmount(row.cells.at(-1)?.text ?? "");
+      if (broughtForward !== null) previousBalance = broughtForward;
+      continue;
+    }
+
+    if (SKIP_LINE.test(row.line)) {
+      continue;
+    }
+
     if (
-      !row.line.trim() ||
-      SKIP_LINE.test(row.line) ||
-      METADATA_LINE.test(row.line)
+      !rowLooksLikeTransaction(row.line) &&
+      amountColumnLayout === "kbank_txn_balance" &&
+      transactions.length > 0 &&
+      kbankHeaderColumnMap &&
+      !SKIP_LINE.test(row.line) &&
+      !/^KBPDF|K Contact Center|ออกโดย/i.test(row.line) &&
+      row.cells.length > 0 &&
+      row.cells.every(
+        (c) =>
+          parseAmount(c.text) === null &&
+          !extractDateFromLine(c.text) &&
+          c.x >= kbankHeaderColumnMap.descriptionX! - COLUMN_X_TOLERANCE,
+      )
     ) {
+      const last = transactions[transactions.length - 1]!;
+      const extra = row.line.trim();
+      if (extra && extra !== ".") {
+        last.description = `${last.description} ${extra}`
+          .replace(/\s+/g, " ")
+          .trim();
+      }
       continue;
     }
 
@@ -593,14 +1039,28 @@ export function parseBankTable(
 
     const parsed: StatementRow | null = headerColumnMap
       ? parseRowWithHeaderColumnMap(row, headerColumnMap)
-      : parseTransactionLine(
-          row.line,
-          splitColumns(row, options?.columnGap ?? 20),
-          amountColumnLayout,
-          previousBalance,
-        );
+      : kbankHeaderColumnMap && amountColumnLayout === "kbank_txn_balance"
+        ? parseKbankRowWithHeaderColumnMap(
+            row,
+            kbankHeaderColumnMap,
+            previousBalance,
+          )
+        : scbHeaderColumnMap && amountColumnLayout === "txn_balance"
+          ? parseScbRowWithHeaderColumnMap(
+              row,
+              scbHeaderColumnMap,
+              previousBalance,
+            )
+          : parseTransactionLine(
+              row.line,
+              splitColumns(row, options?.columnGap ?? 20),
+              amountColumnLayout,
+              previousBalance,
+            );
     if (parsed) {
-      transactions.push(parsed);
+      if (rowHasTransactionAmount(parsed)) {
+        transactions.push(parsed);
+      }
       if (parsed.balance !== null) {
         previousBalance = parsed.balance;
       }
