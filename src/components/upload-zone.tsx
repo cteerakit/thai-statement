@@ -31,22 +31,19 @@ type ConvertMeta = {
   accountNumber?: string;
   periodStart?: string;
   periodEnd?: string;
-  conversionId?: string | null;
 };
 
 type UploadZoneProps = {
-  isSignedIn: boolean;
   dict: UploadDictionary;
   previewDict: PreviewDictionary;
 };
 
-export function UploadZone({ isSignedIn, dict, previewDict }: UploadZoneProps) {
+export function UploadZone({ dict, previewDict }: UploadZoneProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const passwordDetectGen = useRef(0);
   const [file, setFile] = useState<File | null>(null);
   const [bank, setBank] = useState<BankOption>("auto");
   const [format, setFormat] = useState<FormatOption>("csv");
-  const [saveHistory, setSaveHistory] = useState(false);
   const [password, setPassword] = useState("");
   const [needsPassword, setNeedsPassword] = useState(false);
   const [checkingPassword, setCheckingPassword] = useState(false);
@@ -121,9 +118,6 @@ export function UploadZone({ isSignedIn, dict, previewDict }: UploadZoneProps) {
     formData.append("format", downloadFormat ? downloadFormat : "json");
     if (password) {
       formData.append("password", password);
-    }
-    if (isSignedIn && saveHistory) {
-      formData.append("saveHistory", "true");
     }
 
     try {
@@ -266,18 +260,6 @@ export function UploadZone({ isSignedIn, dict, previewDict }: UploadZoneProps) {
           />
           <p className="text-sm text-muted-foreground">{dict.pdfPasswordHint}</p>
         </div>
-      )}
-
-      {isSignedIn && (
-        <label className="flex cursor-pointer items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={saveHistory}
-            onChange={(e) => setSaveHistory(e.target.checked)}
-            className="cursor-pointer rounded border-border"
-          />
-          {dict.saveHistory}
-        </label>
       )}
 
       {error && (

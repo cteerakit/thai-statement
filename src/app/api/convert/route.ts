@@ -1,25 +1,14 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { auth } from "@/auth";
 import { rowsToCsv } from "@/lib/export/csv";
 import { rowsToXlsxBuffer } from "@/lib/export/xlsx";
-import { db, schema } from "@/lib/db";
 import {
   MAX_FILE_BYTES,
   MAX_PASSWORD_LENGTH,
   checkRateLimit,
 } from "@/lib/limits";
-import {
-  ParseError,
-  parseStatement,
-  type BankHint,
-  type StatementRow,
-} from "@/lib/parse";
-import {
-  CONVERT_API_HEADER,
-  CONVERT_API_HEADER_VALUE,
-  hasConvertApiHeader,
-} from "@/lib/security/api";
+import { ParseError, parseStatement, type BankHint } from "@/lib/parse";
+import { hasConvertApiHeader } from "@/lib/security/api";
 import { getTrustedClientIp } from "@/lib/security/client-ip";
 import { validatePdfBuffer } from "@/lib/security/validate-pdf";
 
@@ -28,31 +17,6 @@ export const maxDuration = 60;
 
 const bankSchema = z.enum(["auto", "scb", "kbank", "ktb"]);
 const formatSchema = z.enum(["json", "csv", "xlsx"]);
-
-async function saveConversion(
-  userId: string,
-  bank: string,
-  rows: StatementRow[],
-  metadata: Record<string, unknown>,
-) {
-  if (!db) return null;
-  const expiresAt = new Date();
-  expiresAt.setDate(expiresAt.getDate() + 30);
-
-  const [record] = await db
-    .insert(schema.conversions)
-    .values({
-      userId,
-      bank,
-      rowCount: rows.length,
-      metadata,
-      rows,
-      expiresAt,
-    })
-    .returning({ id: schema.conversions.id });
-
-  return record?.id ?? null;
-}
 
 export async function POST(request: Request) {
   if (!hasConvertApiHeader(request)) {
@@ -95,7 +59,6 @@ export async function POST(request: Request) {
 
   const bankRaw = String(formData.get("bank") ?? "auto");
   const formatRaw = String(formData.get("format") ?? "json");
-  const saveHistory = formData.get("saveHistory") === "true";
 
   const bankParsed = bankSchema.safeParse(bankRaw);
   const formatParsed = formatSchema.safeParse(formatRaw);
@@ -130,24 +93,11 @@ export async function POST(request: Request) {
       password,
     );
 
-    const session = await auth();
-    let conversionId: string | null = null;
-
-    if (session?.user?.id && saveHistory && db) {
-      conversionId = await saveConversion(
-        session.user.id,
-        result.detectedBank,
-        result.rows,
-        result.metadata as Record<string, unknown>,
-      );
-    }
-
     const meta = {
       ...result.metadata,
       bank: result.detectedBank,
       confidence: result.confidence,
       rowCount: result.rows.length,
-      conversionId,
     };
 
     if (formatParsed.data === "csv") {

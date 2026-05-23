@@ -1,4 +1,3 @@
-import { auth } from "@/auth";
 import { UploadZone } from "@/components/upload-zone";
 import {
   Card,
@@ -24,7 +23,6 @@ export default async function HomePage({ params }: HomePageProps) {
 
   const locale: Locale = localeParam;
   const dict = await getDictionary(locale);
-  const session = await auth();
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-12 space-y-10">
@@ -48,11 +46,7 @@ export default async function HomePage({ params }: HomePageProps) {
           <CardDescription>{dict.home.convertDescription}</CardDescription>
         </CardHeader>
         <CardContent>
-          <UploadZone
-            isSignedIn={!!session?.user}
-            dict={dict.upload}
-            previewDict={dict.preview}
-          />
+          <UploadZone dict={dict.upload} previewDict={dict.preview} />
         </CardContent>
       </Card>
 

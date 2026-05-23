@@ -7,10 +7,6 @@ export const dictionary = {
       "Convert digital PDF bank statements from SCB, KBank, and KTB to CSV or Excel. Free, no login required.",
   },
   nav: {
-    privacy: "Privacy",
-    history: "History",
-    signIn: "Sign in",
-    signOut: "Sign out",
     language: "Language",
   },
   footer: {
@@ -22,13 +18,13 @@ export const dictionary = {
   home: {
     title: "Thai bank statement converter",
     subtitle:
-      "Upload a digital PDF statement and download clean CSV or Excel files. No account required — sign in only if you want saved history.",
+      "Upload a digital PDF statement and download clean CSV or Excel files. No account required.",
     convertTitle: "Convert your statement",
     convertDescription:
       "Supports text-based PDFs up to 10 MB, including password-protected files. Scanned/image PDFs are not supported yet.",
     featurePrivateTitle: "Private by default",
     featurePrivateBody:
-      "Your PDF is never stored unless you sign in and opt in to history.",
+      "Your PDF is processed in server memory only and is never stored.",
     featureColumnsTitle: "Standard columns",
     featureColumnsBody:
       "Date, description, debit, credit, balance, and reference.",
@@ -43,8 +39,6 @@ export const dictionary = {
     downloadFormat: "Download format",
     formatCsv: "CSV",
     formatXlsx: "Excel (XLSX)",
-    saveHistory:
-      "Save to my history (30 days, transactions only — PDF is not stored)",
     preview: "Preview transactions",
     processing: "Processing…",
     download: "Download",
@@ -70,32 +64,18 @@ export const dictionary = {
     balance: "Balance",
     showingRows: "Showing first {limit} of {total} rows. Download the full file to see all transactions.",
   },
-  history: {
-    title: "Conversion history",
-    subtitle: "Stored for 30 days. PDFs are never saved.",
-    unavailableTitle: "History unavailable",
-    unavailableDescription:
-      "Set DATABASE_URL and run migrations to enable conversion history.",
-    empty:
-      'No saved conversions yet. Convert a statement and check "Save to my history".',
-    rows: "rows",
-    expires: "expires",
-    back: "← Back to converter",
-  },
   privacy: {
     title: "Privacy Policy",
     updated: "Last updated: May 2026",
     collectTitle: "What we collect",
-    collectAnonymous:
-      "When you convert a statement without signing in, we process your PDF in server memory only. We do not store the PDF file.",
-    collectSignedIn:
-      "If you sign in and choose to save history, we store the extracted transaction rows (not your PDF) for 30 days so you can re-download them.",
+    collectBody:
+      "We process your PDF in server memory only to extract transactions. We do not store the PDF file or require an account.",
     notTitle: "What we do not do",
     notSell: "We do not sell your data.",
     notAds: "We do not use your statements for advertising.",
     notScanned: "We do not support scanned PDFs in the current version.",
     limitsTitle: "Rate limits",
-    limitsBody: "Anonymous conversions are rate-limited per IP to prevent abuse.",
+    limitsBody: "Conversions are rate-limited per IP to prevent abuse.",
     contactTitle: "Contact",
     contactBody:
       "For privacy questions, contact the site operator through your deployment channel (e.g. GitHub issues on this project).",

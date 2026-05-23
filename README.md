@@ -2,16 +2,14 @@
 
 Public web app to convert digital PDF bank statements from **SCB**, **KBank**, and **KTB** into **CSV** or **Excel**.
 
-- No login required for conversion
-- Optional Google sign-in to save conversion history (30 days, transactions only — PDFs are never stored)
+- No login or account required
 - Digital/text PDFs only (no OCR)
+- PDFs are processed in memory and never stored
 
 ## Getting started
 
 ```bash
 npm install
-cp .env.example .env.local
-# Set AUTH_SECRET (required for auth routes)
 npm run dev
 ```
 
@@ -19,23 +17,11 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ## Environment variables
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `AUTH_SECRET` | Yes (if using auth) | Random secret for NextAuth |
-| `GOOGLE_CLIENT_ID` | For sign-in | Google OAuth client |
-| `GOOGLE_CLIENT_SECRET` | For sign-in | Google OAuth secret |
-| `DATABASE_URL` | For history | PostgreSQL connection string |
-| `ALLOWED_EMAIL_DOMAIN` | No | Restrict Google sign-in to one email domain |
-| `TRUST_PROXY_HEADERS` | No | Set to `1` when behind a reverse proxy that sets `X-Forwarded-For` |
+None are required. Optional:
 
-## Database migrations
-
-With `DATABASE_URL` set:
-
-```bash
-npm run db:push
-# or apply drizzle/0000_init.sql manually
-```
+| Variable | Description |
+|----------|-------------|
+| `TRUST_PROXY_HEADERS` | Set to `1` when behind a reverse proxy that sets `X-Forwarded-For` (not needed on Vercel) |
 
 ## Scripts
 
@@ -44,7 +30,6 @@ npm run db:push
 | `npm run dev` | Development server |
 | `npm run build` | Production build |
 | `npm run test` | Run Vitest unit tests |
-| `npm run db:push` | Push Drizzle schema to database |
 
 ## Supported banks
 
@@ -67,4 +52,4 @@ Place sanitized sample PDFs in `tests/fixtures/` and add golden `rows.json` expe
 
 ## Deploy
 
-Deploy to Vercel with Node.js runtime for `/api/convert`. Set environment variables in the project dashboard.
+Deploy to Vercel with Node.js 22+ (24.x works). No environment variables are required for PDF conversion.

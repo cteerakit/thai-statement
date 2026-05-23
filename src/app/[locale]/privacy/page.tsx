@@ -21,8 +21,7 @@ export default async function PrivacyPage({ params }: PrivacyPageProps) {
       <p className="text-muted-foreground text-sm">{t.updated}</p>
 
       <h2>{t.collectTitle}</h2>
-      <p>{t.collectAnonymous}</p>
-      <p>{t.collectSignedIn}</p>
+      <p>{t.collectBody}</p>
 
       <h2>{t.notTitle}</h2>
       <ul>
