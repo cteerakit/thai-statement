@@ -1,22 +1,10 @@
 import type { TextItem } from "./types";
 import { ParseError } from "./types";
+import { getPasswordErrorCode } from "./pdf-password";
 
 const MAX_PAGES = 20;
 
-/** pdfjs PasswordResponses: NEED_PASSWORD = 1, INCORRECT_PASSWORD = 2 */
-export function getPasswordErrorCode(err: unknown): 1 | 2 | null {
-  if (
-    err &&
-    typeof err === "object" &&
-    "name" in err &&
-    err.name === "PasswordException" &&
-    "code" in err &&
-    (err.code === 1 || err.code === 2)
-  ) {
-    return err.code;
-  }
-  return null;
-}
+export { getPasswordErrorCode } from "./pdf-password";
 
 export async function extractTextItems(
   buffer: Buffer,

@@ -26,4 +26,22 @@ describe("parseBankTable", () => {
     expect(result.rows[0].date).toBe("2024-01-15");
     expect(result.metadata.bank).toBe("kbank");
   });
+
+  it("excludes footer lines that have a date but no amounts", () => {
+    const items = makeItems([
+      { page: 1, y: 600, parts: ["Date", "Description", "Debit", "Credit", "Balance"] },
+      { page: 1, y: 500, parts: ["15/01/2567", "Salary", "50,000.00", "", "150,000.00"] },
+      {
+        page: 1,
+        y: 200,
+        parts: ["01/04/2569", "Statement Period to 30/04/26"],
+      },
+      { page: 1, y: 180, parts: ["23/05/2569", "Requested Date"] },
+    ]);
+
+    const result = parseBankTable(items, "scb");
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0].description).toContain("Salary");
+    expect(result.rows[0].debit).not.toBeNull();
+  });
 });

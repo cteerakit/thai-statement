@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getPasswordErrorCode } from "@/lib/parse/pdf-extract";
+import { getPasswordErrorCode } from "@/lib/parse/pdf-password";
 
 describe("getPasswordErrorCode", () => {
   it("returns 1 for NEED_PASSWORD", () => {

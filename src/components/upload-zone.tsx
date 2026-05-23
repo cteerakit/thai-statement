@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
+import { detectPdfPassword } from "@/lib/parse/pdf-password";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
@@ -41,33 +42,63 @@ type UploadZoneProps = {
 
 export function UploadZone({ isSignedIn, dict, previewDict }: UploadZoneProps) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const passwordDetectGen = useRef(0);
   const [file, setFile] = useState<File | null>(null);
   const [bank, setBank] = useState<BankOption>("auto");
   const [format, setFormat] = useState<FormatOption>("csv");
   const [saveHistory, setSaveHistory] = useState(false);
   const [password, setPassword] = useState("");
   const [needsPassword, setNeedsPassword] = useState(false);
+  const [checkingPassword, setCheckingPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [rows, setRows] = useState<StatementRow[] | null>(null);
   const [warnings, setWarnings] = useState<string[]>([]);
   const [meta, setMeta] = useState<ConvertMeta | null>(null);
 
+  const selectFile = useCallback(
+    async (f: File) => {
+      const gen = ++passwordDetectGen.current;
+      setFile(f);
+      setError(null);
+      setRows(null);
+      setMeta(null);
+      setPassword("");
+      setNeedsPassword(false);
+      setCheckingPassword(true);
+
+      try {
+        const buffer = await f.arrayBuffer();
+        if (gen !== passwordDetectGen.current) return;
+
+        const state = await detectPdfPassword(new Uint8Array(buffer));
+        if (gen !== passwordDetectGen.current) return;
+
+        if (state === "required") {
+          setNeedsPassword(true);
+        }
+      } catch {
+        // Fall back to server-side detection on convert.
+      } finally {
+        if (gen === passwordDetectGen.current) {
+          setCheckingPassword(false);
+        }
+      }
+    },
+    [],
+  );
+
   const onDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
       const f = e.dataTransfer.files[0];
       if (f?.type === "application/pdf" || f?.name.endsWith(".pdf")) {
-        setFile(f);
-        setError(null);
-        setRows(null);
-        setPassword("");
-        setNeedsPassword(false);
+        void selectFile(f);
       } else {
         setError(dict.errorPdf);
       }
     },
-    [dict.errorPdf],
+    [dict.errorPdf, selectFile],
   );
 
   const convert = async (downloadFormat?: FormatOption) => {
@@ -163,13 +194,7 @@ export function UploadZone({ isSignedIn, dict, previewDict }: UploadZoneProps) {
           className="hidden"
           onChange={(e) => {
             const f = e.target.files?.[0];
-            if (f) {
-              setFile(f);
-              setError(null);
-              setRows(null);
-              setPassword("");
-              setNeedsPassword(false);
-            }
+            if (f) void selectFile(f);
           }}
         />
         <p className="text-lg font-medium">
@@ -262,13 +287,16 @@ export function UploadZone({ isSignedIn, dict, previewDict }: UploadZoneProps) {
       )}
 
       <div className="flex flex-wrap gap-3">
-        <Button onClick={() => convert()} disabled={loading || !file}>
+        <Button
+          onClick={() => convert()}
+          disabled={loading || checkingPassword || !file}
+        >
           {loading ? dict.processing : dict.preview}
         </Button>
         <Button
           variant="secondary"
           onClick={() => convert(format)}
-          disabled={loading || !file}
+          disabled={loading || checkingPassword || !file}
         >
           {dict.download} {format.toUpperCase()}
         </Button>

@@ -19,6 +19,9 @@ const TRANSACTION_HEADER =
 const SKIP_LINE =
   /^(page|หน้า|total|ยอดรวม|opening|closing| brought forward| carried forward|สรุป|balance forward)/i;
 
+const METADATA_LINE =
+  /statement\s+period|requested\s+date|ช่วงเวลา|วันที่ขอ|รอบระยะเวลา/i;
+
 const ACCOUNT_PATTERN =
   /(?:account|เลขที่บัญชี|a\/c|acc\.?)\s*(?:no\.?|number)?\s*[:.]?\s*([\d\-xX*]{6,})/i;
 
@@ -123,6 +126,8 @@ function parseTransactionLine(
     if (descCols) description = descCols;
   }
 
+  if (debit === null && credit === null && balance === null) return null;
+
   return {
     date,
     description,
@@ -178,7 +183,13 @@ export function parseBankTable(
 
   for (let i = start; i < rows.length; i++) {
     const row = rows[i];
-    if (!row.line.trim() || SKIP_LINE.test(row.line)) continue;
+    if (
+      !row.line.trim() ||
+      SKIP_LINE.test(row.line) ||
+      METADATA_LINE.test(row.line)
+    ) {
+      continue;
+    }
 
     if (!rowLooksLikeTransaction(row.line)) {
       skipped++;
