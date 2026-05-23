@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { headers } from "next/headers";
+import Script from "next/script";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { LOGO_SRC, PRODUCT_NAME } from "@/i18n/brand";
@@ -18,6 +19,8 @@ const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
 });
+
+const ADSENSE_CLIENT = "ca-pub-8401385083215890";
 
 export const metadata: Metadata = {
   metadataBase: new URL(getSiteUrl()),
@@ -52,6 +55,12 @@ export default async function RootLayout({
         {children}
         <Analytics />
         <SpeedInsights />
+        <Script
+          async
+          src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_CLIENT}`}
+          crossOrigin="anonymous"
+          strategy="afterInteractive"
+        />
       </body>
     </html>
   );
