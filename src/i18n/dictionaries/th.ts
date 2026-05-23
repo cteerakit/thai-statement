@@ -3,12 +3,13 @@ import type { Dictionary } from "@/i18n/types";
 
 export const dictionary: Dictionary = {
   meta: {
-    title: PRODUCT_NAME,
+    title: `${PRODUCT_NAME} — แปลงสเตทเมนต์ธนาคารไทยเป็น CSV และ Excel`,
     description:
-      "แปลงสเตทเมนต์ PDF ดิจิทัลจาก SCB, KBank และ KTB เป็น CSV หรือ Excel ฟรี ไม่ต้องเข้าสู่ระบบ",
+      "แปลงสเตทเมนต์ PDF ดิจิทัลจาก SCB, KBank และ KTB เป็น CSV หรือ Excel ฟรี เป็นส่วนตัว และไม่ต้องเข้าสู่ระบบ",
   },
   nav: {
     language: "ภาษา",
+    logoAlt: "โลโก้ Thai Statement",
   },
   footer: {
     processed: "ประมวลผล PDF ในหน่วยความจำแล้วทิ้งทันที",
@@ -21,6 +22,7 @@ export const dictionary: Dictionary = {
     subtitle:
       "อัปโหลดสเตทเมนต์ PDF ดิจิทัลแล้วดาวน์โหลดไฟล์ CSV หรือ Excel ที่จัดรูปแบบแล้ว ไม่ต้องมีบัญชี",
     supportedBanks: "ธนาคารที่รองรับ",
+    bankLogoAlt: "โลโก้ {bank}",
     convertTitle: "แปลงสเตทเมนต์ของคุณ",
     convertDescription:
       "รองรับ PDF แบบข้อความสูงสุด 10 MB รวมไฟล์ที่มีรหัสผ่าน ยังไม่รองรับ PDF สแกน/รูปภาพ",
@@ -75,6 +77,8 @@ export const dictionary: Dictionary = {
   },
   privacy: {
     title: "นโยบายความเป็นส่วนตัว",
+    metaDescription:
+      "Thai Statement จัดการ PDF ของคุณอย่างไร: ประมวลผลในหน่วยความจำเท่านั้น ไม่เก็บไฟล์ และไม่ต้องมีบัญชี",
     updated: "อัปเดตล่าสุด: พฤษภาคม 2569",
     collectTitle: "ข้อมูลที่เราเก็บ",
     collectBody:
@@ -92,6 +96,8 @@ export const dictionary: Dictionary = {
   },
   terms: {
     title: "ข้อกำหนดการใช้งาน",
+    metaDescription:
+      "ข้อกำหนดการใช้งาน Thai Statement เครื่องมือแปลงสเตทเมนต์ธนาคารไทยเป็น CSV และ Excel ฟรี",
     updated: "อัปเดตล่าสุด: พฤษภาคม 2569",
     serviceTitle: "บริการ",
     serviceBody:

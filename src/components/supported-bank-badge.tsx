@@ -1,4 +1,5 @@
 import { Badge } from "@/components/ui/badge";
+import { formatMessage } from "@/i18n/format";
 import { cn } from "@/lib/utils";
 
 const SUPPORTED_BANKS = [
@@ -9,10 +10,15 @@ const SUPPORTED_BANKS = [
 
 type SupportedBankBadgeProps = {
   bank: (typeof SUPPORTED_BANKS)[number];
+  bankLogoAlt: string;
   className?: string;
 };
 
-function SupportedBankBadge({ bank, className }: SupportedBankBadgeProps) {
+function SupportedBankBadge({
+  bank,
+  bankLogoAlt,
+  className,
+}: SupportedBankBadgeProps) {
   return (
     <Badge
       variant="secondary"
@@ -21,26 +27,35 @@ function SupportedBankBadge({ bank, className }: SupportedBankBadgeProps) {
       <span
         className="flex size-5 shrink-0 items-center justify-center rounded-sm"
         style={{ backgroundColor: bank.color }}
-        aria-hidden
       >
         <img
           src={`/logos/banks/${bank.id}.svg`}
-          alt=""
+          alt={formatMessage(bankLogoAlt, { bank: bank.label })}
           width={14}
           height={14}
           className="size-3.5 object-contain"
         />
       </span>
-      {bank.label}
+      <span aria-hidden="true">{bank.label}</span>
     </Badge>
   );
 }
 
-export function SupportedBankBadges({ className }: { className?: string }) {
+export function SupportedBankBadges({
+  bankLogoAlt,
+  className,
+}: {
+  bankLogoAlt: string;
+  className?: string;
+}) {
   return (
     <div className={cn("flex justify-center gap-2 flex-wrap", className)}>
       {SUPPORTED_BANKS.map((bank) => (
-        <SupportedBankBadge key={bank.id} bank={bank} />
+        <SupportedBankBadge
+          key={bank.id}
+          bank={bank}
+          bankLogoAlt={bankLogoAlt}
+        />
       ))}
     </div>
   );

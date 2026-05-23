@@ -2,12 +2,13 @@ import { PRODUCT_NAME } from "@/i18n/brand";
 
 export const dictionary = {
   meta: {
-    title: PRODUCT_NAME,
+    title: `${PRODUCT_NAME} — Convert Thai Bank PDFs to CSV & Excel`,
     description:
-      "Convert digital PDF bank statements from SCB, KBank, and KTB to CSV or Excel. Free, no login required.",
+      "Convert digital PDF bank statements from SCB, KBank, and KTB to CSV or Excel. Free, private, and no login required.",
   },
   nav: {
     language: "Language",
+    logoAlt: "Thai Statement logo",
   },
   footer: {
     processed:
@@ -21,6 +22,7 @@ export const dictionary = {
     subtitle:
       "Upload a digital PDF statement and download clean CSV or Excel files. No account required.",
     supportedBanks: "Supported banks",
+    bankLogoAlt: "{bank} logo",
     convertTitle: "Convert your statement",
     convertDescription:
       "Supports text-based PDFs up to 10 MB, including password-protected files. Scanned/image PDFs are not supported yet.",
@@ -73,6 +75,8 @@ export const dictionary = {
   },
   privacy: {
     title: "Privacy Policy",
+    metaDescription:
+      "How Thai Statement handles your PDFs: processed in server memory only, never stored, with no account required.",
     updated: "Last updated: May 2026",
     collectTitle: "What we collect",
     collectBody:
@@ -89,6 +93,8 @@ export const dictionary = {
   },
   terms: {
     title: "Terms of Use",
+    metaDescription:
+      "Terms of use for Thai Statement, the free Thai bank PDF to CSV and Excel converter.",
     updated: "Last updated: May 2026",
     serviceTitle: "Service",
     serviceBody:

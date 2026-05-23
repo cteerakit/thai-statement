@@ -1,10 +1,30 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { isLocale, type Locale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/get-dictionary";
+import { createPageMetadata } from "@/i18n/metadata";
 
 type TermsPageProps = {
   params: Promise<{ locale: string }>;
 };
+
+export async function generateMetadata({
+  params,
+}: TermsPageProps): Promise<Metadata> {
+  const { locale: localeParam } = await params;
+  if (!isLocale(localeParam)) {
+    return {};
+  }
+
+  const dict = await getDictionary(localeParam);
+
+  return createPageMetadata({
+    locale: localeParam,
+    pathname: "/terms",
+    title: dict.terms.title,
+    description: dict.terms.metaDescription,
+  });
+}
 
 export default async function TermsPage({ params }: TermsPageProps) {
   const { locale: localeParam } = await params;

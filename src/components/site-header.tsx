@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import type { Locale } from "@/i18n/config";
-import { PRODUCT_NAME } from "@/i18n/brand";
+import { LOGO_SRC, PRODUCT_NAME } from "@/i18n/brand";
 import type { Dictionary } from "@/i18n/types";
 import { localizedPath } from "@/i18n/locale-path";
 
@@ -16,9 +16,16 @@ export function SiteHeader({ locale, dict }: SiteHeaderProps) {
       <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4">
         <Link
           href={localizedPath(locale, "/")}
-          className="font-semibold tracking-tight"
+          className="flex items-center gap-2 font-semibold tracking-tight"
         >
-          {PRODUCT_NAME}
+          <img
+            src={LOGO_SRC}
+            alt={dict.logoAlt}
+            width={24}
+            height={24}
+            className="size-6 shrink-0 dark:invert"
+          />
+          <span aria-hidden="true">{PRODUCT_NAME}</span>
         </Link>
         <nav className="flex items-center gap-4 text-sm">
           <LocaleSwitcher locale={locale} label={dict.language} />

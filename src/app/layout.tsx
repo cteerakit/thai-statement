@@ -3,9 +3,10 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { headers } from "next/headers";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import { LOGO_SRC, PRODUCT_NAME } from "@/i18n/brand";
 import { defaultLocale, isLocale } from "@/i18n/config";
-import { getDictionary } from "@/i18n/get-dictionary";
 import { PageBackground } from "@/components/page-background";
+import { getSiteUrl } from "@/lib/site-url";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -18,18 +19,18 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export async function generateMetadata(): Promise<Metadata> {
-  const headerList = await headers();
-  const localeHeader = headerList.get("x-locale");
-  const locale =
-    localeHeader && isLocale(localeHeader) ? localeHeader : defaultLocale;
-  const dict = await getDictionary(locale);
-
-  return {
-    title: dict.meta.title,
-    description: dict.meta.description,
-  };
-}
+export const metadata: Metadata = {
+  metadataBase: new URL(getSiteUrl()),
+  applicationName: PRODUCT_NAME,
+  icons: {
+    icon: LOGO_SRC,
+    apple: LOGO_SRC,
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+};
 
 export default async function RootLayout({
   children,

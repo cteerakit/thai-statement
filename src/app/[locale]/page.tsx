@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { UploadZone } from "@/components/upload-zone";
 import {
   Card,
@@ -9,11 +10,30 @@ import {
 import { SupportedBankBadges } from "@/components/supported-bank-badge";
 import { isLocale, type Locale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/get-dictionary";
+import { createPageMetadata } from "@/i18n/metadata";
 import { notFound } from "next/navigation";
 
 type HomePageProps = {
   params: Promise<{ locale: string }>;
 };
+
+export async function generateMetadata({
+  params,
+}: HomePageProps): Promise<Metadata> {
+  const { locale: localeParam } = await params;
+  if (!isLocale(localeParam)) {
+    return {};
+  }
+
+  const dict = await getDictionary(localeParam);
+
+  return createPageMetadata({
+    locale: localeParam,
+    pathname: "/",
+    title: dict.meta.title,
+    description: dict.meta.description,
+  });
+}
 
 export default async function HomePage({ params }: HomePageProps) {
   const { locale: localeParam } = await params;
@@ -39,7 +59,7 @@ export default async function HomePage({ params }: HomePageProps) {
           <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground/80">
             {dict.home.supportedBanks}
           </p>
-          <SupportedBankBadges />
+          <SupportedBankBadges bankLogoAlt={dict.home.bankLogoAlt} />
         </div>
       </section>
 
